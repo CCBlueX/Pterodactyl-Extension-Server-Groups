@@ -27,7 +27,7 @@ final readonly class Synchronizer
     {
         return Cache::lock('ext:server-groups:sync', 300)->block(30, function (): array {
             $stats = ['created' => 0, 'updated' => 0, 'removed' => 0, 'skipped' => 0, 'failed' => 0];
-            $groups = Group::query()->with(['servers:id,owner_id', 'members'])->get();
+            $groups = Group::query()->with(['servers' => static fn ($query) => $query->without('allocation')->select(['servers.id', 'servers.owner_id']), 'members'])->get();
 
             $desired = Access::desired(
                 $groups->map(static fn (Group $group): array => [

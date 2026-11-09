@@ -20,8 +20,9 @@ final class AdminController
     public function index(): JsonResponse
     {
         return new JsonResponse([
-            'groups' => Group::query()->with(['servers:id,name,uuid', 'members.user:id,username,email'])->orderBy('name')->get()->map(self::present(...)),
-            'servers' => Server::query()->orderBy('name')->get(['id', 'name', 'uuid'])->map(static fn (Server $server): array => ['id' => $server->id, 'name' => $server->name, 'identifier' => $server->uuidShort]),
+            'groups' => Group::query()->with(['servers', 'members.user:id,username,email'])->orderBy('name')->get()->map(self::present(...)),
+            'servers' => Server::query()->orderBy('name')->toBase()->get(['id', 'name', 'uuidShort'])
+                ->map(static fn (object $server): array => ['id' => (int) $server->id, 'name' => (string) $server->name, 'identifier' => (string) $server->uuidShort]),
         ]);
     }
 
@@ -63,10 +64,13 @@ final class AdminController
     {
         $memberships = [];
 
-        foreach (Group::query()->with('servers:id')->get() as $group) {
-            foreach ($group->servers as $server) {
-                $memberships[$server->id][] = ['id' => $group->id, 'name' => $group->name, 'color' => $group->color];
-            }
+        $rows = DB::table('ext_server_groups_servers')
+            ->join('ext_server_groups_groups', 'ext_server_groups_groups.id', '=', 'ext_server_groups_servers.group_id')
+            ->orderBy('ext_server_groups_groups.name')
+            ->get(['ext_server_groups_servers.server_id', 'ext_server_groups_groups.id', 'ext_server_groups_groups.name', 'ext_server_groups_groups.color']);
+
+        foreach ($rows as $row) {
+            $memberships[(int) $row->server_id][] = ['id' => (int) $row->id, 'name' => (string) $row->name, 'color' => (string) $row->color];
         }
 
         return new JsonResponse(['servers' => (object) $memberships]);
