@@ -1,11 +1,22 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Dialog, Input, Label, PageContentBlock, Select, Spinner, TitledGreyBox, httpErrorToHuman, toast } from '@pterodactyl/sdk';
+import { Button, Dialog, Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, Input, Label, NamedIcon, PageContentBlock, Select, ServerError, Spinner, TitledGreyBox, httpErrorToHuman, toast } from '@pterodactyl/sdk';
 import { deleteGroup, getAdmin, getPermissionKeys, keys, saveGroup, searchUsers, syncGroups, type AdminData, type AdminGroup, type GroupInput } from '../api';
 import GroupTitle from '../components/GroupTitle';
 import { PRESETS, presetLabel, presetOf } from '../presets';
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+// Groups store #rrggbb, so the theme's primary colour (any CSS colour syntax) is read back as a pixel.
+const themeColor = () => {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    const context = value ? document.createElement('canvas').getContext('2d', { willReadFrequently: true }) : null;
+    if (!context) return '#3b82f6';
+    context.fillStyle = value;
+    context.fillRect(0, 0, 1, 1);
+    const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+    return `#${[r, g, b].map((part) => part.toString(16).padStart(2, '0')).join('')}`;
+};
 
 interface DraftMember {
     user: number;
@@ -62,14 +73,29 @@ export default function AdminScreen() {
                     <Button.Text isLoading={syncing.isPending} onClick={() => syncing.mutate()}>
                         Sync now
                     </Button.Text>
-                    <Button onClick={() => setDraft({ name: '', color: '#3b82f6', servers: [], members: [] })}>New group</Button>
+                    <Button onClick={() => setDraft({ name: '', color: themeColor(), servers: [], members: [] })}>New group</Button>
                 </div>
             </header>
 
             {!data.data ? (
-                data.isError ? <p className='sgr:text-sm sgr:text-destructive'>{httpErrorToHuman(data.error)}</p> : <Spinner centered size={Spinner.Size.LARGE} />
+                data.isError ? (
+                    <ServerError title='Could not load server groups' message={httpErrorToHuman(data.error)} onRetry={() => data.refetch()} />
+                ) : (
+                    <Spinner centered size={Spinner.Size.LARGE} />
+                )
             ) : data.data.groups.length === 0 ? (
-                <p className='sgr:py-8 sgr:text-center sgr:text-sm sgr:text-muted-foreground'>No groups yet.</p>
+                <Empty className='sgr:rounded-sm sgr:border sgr:border-border sgr:bg-card'>
+                    <EmptyHeader>
+                        <EmptyMedia variant='icon'>
+                            <NamedIcon name='layers' />
+                        </EmptyMedia>
+                        <EmptyTitle>No groups yet</EmptyTitle>
+                        <EmptyDescription>Group servers and members to give everyone in the group subuser access at once.</EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                        <Button onClick={() => setDraft({ name: '', color: themeColor(), servers: [], members: [] })}>New group</Button>
+                    </EmptyContent>
+                </Empty>
             ) : (
                 <div className='sgr:grid sgr:gap-4 sgr:md:grid-cols-2'>
                     {data.data.groups.map((group) => (

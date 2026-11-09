@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { PageContentBlock, PanelLink, Spinner, TitledGreyBox, httpErrorToHuman } from '@pterodactyl/sdk';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle, NamedIcon, PageContentBlock, PanelLink, ServerError, Spinner, TitledGreyBox, httpErrorToHuman } from '@pterodactyl/sdk';
 import { getClientGroups, keys } from '../api';
 import GroupTitle from '../components/GroupTitle';
 
@@ -11,9 +11,17 @@ export default function GroupsScreen() {
             {groups.isLoading ? (
                 <Spinner centered size={Spinner.Size.LARGE} />
             ) : groups.isError ? (
-                <p className='sgr:text-sm sgr:text-destructive'>{httpErrorToHuman(groups.error)}</p>
+                <ServerError title='Could not load your groups' message={httpErrorToHuman(groups.error)} onRetry={() => groups.refetch()} />
             ) : groups.data!.length === 0 ? (
-                <p className='sgr:py-8 sgr:text-center sgr:text-sm sgr:text-muted-foreground'>None of your servers is in a group.</p>
+                <Empty className='sgr:rounded-sm sgr:border sgr:border-border sgr:bg-card'>
+                    <EmptyHeader>
+                        <EmptyMedia variant='icon'>
+                            <NamedIcon name='layers' />
+                        </EmptyMedia>
+                        <EmptyTitle>No groups</EmptyTitle>
+                        <EmptyDescription>None of your servers is in a group.</EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
             ) : (
                 <div className='sgr:grid sgr:gap-6 sgr:md:grid-cols-2'>
                     {groups.data!.map((group) => (
